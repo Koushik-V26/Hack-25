@@ -68,16 +68,31 @@ logistic_model.fit(X_train, y_train)
 svm_model = SVR(kernel='rbf')  # 'rbf' is a popular choice for SVM regression
 svm_model.fit(X_train, y_train)
 
-# Predict next day's cases using all three models
-next_day = np.array([[31]])  # Predict for Day 31
+# Predict for the next 30 days using all three models
+days = np.array([[i] for i in range(1, 31)])  # Days 1 to 30
 
-predicted_cases_linear = linear_model.predict(next_day)
-predicted_cases_logistic = logistic_model.predict(next_day)
-predicted_cases_svm = svm_model.predict(next_day)
+predicted_cases_linear = linear_model.predict(days)
+predicted_cases_logistic = logistic_model.predict(days)
+predicted_cases_svm = svm_model.predict(days)
 
-print(f"Predicted cases for Day 31 using Linear Regression: {int(predicted_cases_linear[0])}")
-print(f"Predicted cases for Day 31 using Logistic Regression: {int(predicted_cases_logistic[0])}")
-print(f"Predicted cases for Day 31 using SVM: {int(predicted_cases_svm[0])}")
+# Plotting the predictions of all three models
+plt.figure(figsize=(10,6))
+
+# Plot Linear Regression
+plt.plot(days, predicted_cases_linear, label="Linear Regression", color="blue", marker='o')
+
+# Plot Logistic Regression
+plt.plot(days, predicted_cases_logistic, label="Logistic Regression", color="green", marker='s')
+
+# Plot SVM
+plt.plot(days, predicted_cases_svm, label="SVM", color="red", marker='^')
+
+plt.title("Predicted COVID-19 Cases for the Next 30 Days (UK)")
+plt.xlabel("Day")
+plt.ylabel("Predicted Cases")
+plt.legend()
+plt.grid(True)
+plt.show()
 
 # Streamlit app
 st.title("COVID-19 Cases Prediction in UK")
@@ -94,3 +109,15 @@ if st.button("Predict"):
     st.write(f"Predicted cases for day {day_input} using Linear Regression: {int(prediction_linear[0])}")
     st.write(f"Predicted cases for day {day_input} using Logistic Regression: {int(prediction_logistic[0])}")
     st.write(f"Predicted cases for day {day_input} using SVM: {int(prediction_svm[0])}")
+
+    # Plot the predictions for the user input day
+    st.subheader("Prediction for the Next 30 Days")
+    
+    # Plot the predictions for Linear, Logistic, and SVM
+    plt.figure(figsize=(10,6))
+
+    plt.plot(days, predicted_cases_linear, label="Linear Regression", color="blue", marker='o')
+    plt.plot(days, predicted_cases_logistic, label="Logistic Regression", color="green", marker='s')
+    plt.plot(days, predicted_cases_svm, label="SVM", color="red", marker='^')
+
+    st.pyplot(plt)
