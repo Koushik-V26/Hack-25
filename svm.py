@@ -110,14 +110,19 @@ if st.button("Predict"):
     st.write(f"Predicted cases for day {day_input} using Logistic Regression: {int(prediction_logistic[0])}")
     st.write(f"Predicted cases for day {day_input} using SVM: {int(prediction_svm[0])}")
 
-    # Plot the predictions for the user input day
-    st.subheader("Prediction for the Next 30 Days")
-    
-    # Plot the predictions for Linear, Logistic, and SVM
+    # Plot comparison graph between all three models' predictions for the next 30 days
+    st.subheader("Prediction Comparison for the Next 30 Days")
+
     plt.figure(figsize=(10,6))
 
     plt.plot(days, predicted_cases_linear, label="Linear Regression", color="blue", marker='o')
     plt.plot(days, predicted_cases_logistic, label="Logistic Regression", color="green", marker='s')
     plt.plot(days, predicted_cases_svm, label="SVM", color="red", marker='^')
+
+    plt.title("Predicted COVID-19 Cases for the Next 30 Days (Comparison)")
+    plt.xlabel("Day")
+    plt.ylabel("Predicted Cases")
+    plt.legend()
+    plt.grid(True)
 
     st.pyplot(plt)
