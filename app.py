@@ -1,6 +1,7 @@
+Try AI directly in your favorite apps … Use Gemini to generate drafts and refine content, plus get Gemini Advanced with access to Google’s next-gen AI for ₹1,950.00 ₹0 for 1 month
 import requests
 
-url = "https://disease.sh/v3/covid-19/countries/uk"
+url = "https://disease.sh/v3/covid-19/countries/usa"
 r = requests.get(url)
 data = r.json()
 
@@ -50,14 +51,14 @@ df_historical["day"] = range(1, 31)
 print(df_historical.head())
 
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
 
 X = df_historical[["day"]]
 y = df_historical["cases"]
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-model = LogisticRegression()
+model = LinearRegression()
 model.fit(X_train, y_train)
 
 # Predict next day's cases
@@ -67,7 +68,7 @@ print(f"Predicted cases for Day 31: {int(predicted_cases[0])}")
 
 import streamlit as st
 
-st.title("COVID-19 Cases Prediction-in UK")
+st.title("COVID-19 Cases Prediction-in USA")
 st.write("Predicting COVID-19 cases for the next day based on historical data.")
 
 # User Input
@@ -76,5 +77,4 @@ day_input = st.number_input("Enter day number (e.g., 31 for prediction)", min_va
 if st.button("Predict"):
     prediction = model.predict([[day_input]])
     st.write(f"Predicted cases for day {day_input}: {int(prediction[0])}")
-
 
