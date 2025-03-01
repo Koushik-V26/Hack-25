@@ -1,5 +1,4 @@
-Try AI directly in your favorite apps … Use Gemini to generate drafts and refine content, plus get Gemini Advanced with access to Google’s next-gen AI for ₹1,950.00 ₹0 for 1 month
-import requests
+
 
 url = "https://disease.sh/v3/covid-19/countries/usa"
 r = requests.get(url)
