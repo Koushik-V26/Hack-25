@@ -104,14 +104,15 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
             ax.legend()
             st.pyplot(fig)
 
-            # Buy vs. Sell Percentage
+            # Buy vs. Sell Buttons with percentages
             buy_percentage = np.random.randint(40, 60)
             sell_percentage = 100 - buy_percentage
-            fig, ax = plt.subplots()
-            ax.bar(["Buy", "Sell"], [buy_percentage, sell_percentage], color=["green", "red"])
-            ax.set_ylabel("Percentage (%)")
-            ax.set_title("Buy vs. Sell Recommendations")
-            st.pyplot(fig)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.button(f"📈 Buy ({buy_percentage}%)", key="buy", help="Recommended buy percentage", use_container_width=True)
+            with col2:
+                st.button(f"📉 Sell ({sell_percentage}%)", key="sell", help="Recommended sell percentage", use_container_width=True)
 
         except Exception as e:
             st.error(f"⚠ An error occurred while processing data: {e}")
