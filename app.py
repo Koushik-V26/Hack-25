@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
-import plotly.express as px
+import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 import os  # For secure API key storage
@@ -81,12 +81,20 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
             future_minutes = np.array(range(df["Minutes"].max() + 1, df["Minutes"].max() + 10)).reshape(-1, 1)
             predicted_prices = model.predict(future_minutes)
 
-            # Display Predictions
+            # Display Predictions using Matplotlib
             future_df = pd.DataFrame({"Minutes": future_minutes.flatten(), "Predicted Price": predicted_prices.flatten()})
             future_df["Time"] = pd.date_range(start=df.index.max(), periods=len(future_df), freq="15min")
 
-            fig = px.line(future_df, x="Time", y="Predicted Price", title=f"📈 Intraday Stock Prediction ({selected_company})")
-            st.plotly_chart(fig)
+            # Matplotlib Plot
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(future_df["Time"], future_df["Predicted Price"], marker='o', linestyle='-', color='blue', label="Predicted Price")
+            ax.set_title(f"📈 Intraday Stock Prediction ({selected_company})")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Predicted Price ($)")
+            ax.legend()
+            ax.grid(True)
+
+            st.pyplot(fig)  # Display the Matplotlib figure in Streamlit
 
             # Calculate Profit and Loss Separately
             predicted_high = max(predicted_prices)[0]  # Maximum predicted price
@@ -109,17 +117,4 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
             best_sell_time = future_df.loc[future_df["Predicted Price"].idxmax(), "Time"]
             worst_sell_time = future_df.loc[future_df["Predicted Price"].idxmin(), "Time"]
 
-            st.write(f"🕒 *Best Time to Sell (Expected High):* {best_sell_time.strftime('%H:%M %p')}")
-            st.write(f"⏳ *Risky Time to Hold (Expected Low):* {worst_sell_time.strftime('%H:%M %p')}")
-
-            # Final Recommendation
-            if profit_amount > abs(loss_amount):
-                st.success("📈 *Recommended: Buy Now. Market trend shows a potential uptrend.*")
-            else:
-                st.warning("📉 *Not Recommended: High risk of loss detected.*")
-
-        except Exception as e:
-            st.error(f"⚠ An error occurred while processing data: {e}")
-    
-    else:
-        st.error("⚠ Could not fetch stock data. API limit may have been reached or invalid API key.")
+            st.write(f"🕒 *Best Time to Sell (Expected High):* {best_sell_time.strftime('%H:%
