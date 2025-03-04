@@ -5,9 +5,10 @@ import numpy as np
 import plotly.express as px
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
+import os  # For secure API key storage
 
-# Alpha Vantage API Key (Replace with your own)
-API_KEY = "3BY18CON9QAA97QX"
+# Load API Key securely (Set as an environment variable instead of hardcoding)
+API_KEY = os.getenv("3BY18CON9QAA97QX")  # Set this in your system
 
 # List of stock symbols for intraday trading
 companies = {
@@ -20,7 +21,6 @@ companies = {
 
 # Streamlit UI
 st.set_page_config(page_title="Intraday Stock Predictor", layout="wide")
-
 st.title("📈 Intraday Stock Predictor")
 
 # Select a Company
@@ -32,80 +32,94 @@ investment_amount = st.number_input("Enter the amount you want to invest ($)", m
 
 # Function to fetch intraday stock data
 def get_intraday_data(symbol):
-    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}&interval=15min&apikey={API_KEY}&outputsize=full"
-    response = requests.get(url)
-    data = response.json()
-    return data
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}&interval=15min&apikey={API_KEY}&outputsize=compact"
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raises an error for bad responses (e.g., 403, 500)
+        data = response.json()
+        
+        if "Time Series (15min)" not in data:
+            return None  # Handle cases where API response does not contain expected data
+        return data["Time Series (15min)"]
+    
+    except requests.exceptions.RequestException as e:
+        st.error(f"⚠ API request failed: {e}")
+        return None
 
 # Fetch Data Button
 if st.button("🔍 Predict Intraday Profit/Loss"):
     stock_data = get_intraday_data(symbol)
 
-    if "Time Series (15min)" in stock_data:
-        df = pd.DataFrame.from_dict(stock_data["Time Series (15min)"], orient="index")
-        df = df.astype(float)
-        df.index = pd.to_datetime(df.index)
-        df = df.sort_index()
-        df.columns = ["Open", "High", "Low", "Close", "Volume"]
+    if stock_data:
+        try:
+            # Convert stock data into DataFrame
+            df = pd.DataFrame.from_dict(stock_data, orient="index", dtype=float)
+            df.index = pd.to_datetime(df.index)
+            df = df.sort_index()
+            df.columns = ["Open", "High", "Low", "Close", "Volume"]
 
-        # Display Current Price
-        current_price = df.iloc[-1]["Close"]
-        st.metric(label="📌 Current Stock Price", value=f"${current_price:.2f}")
+            # Display Current Price
+            current_price = df.iloc[-1]["Close"]
+            st.metric(label="📌 Current Stock Price", value=f"${current_price:.2f}")
 
-        # Calculate how many shares the user can buy
-        shares_to_buy = investment_amount / current_price
-        st.info(f"📊 *With ${investment_amount}, you can buy approximately {shares_to_buy:.2f} shares.*")
+            # Calculate how many shares the user can buy
+            shares_to_buy = investment_amount / current_price
+            st.info(f"📊 *With ${investment_amount}, you can buy approximately {shares_to_buy:.2f} shares.*")
 
-        # Prepare Data for Machine Learning Model
-        df["Minutes"] = np.arange(len(df))  # Convert timestamps to numerical values
-        X = df["Minutes"].values.reshape(-1, 1)
-        y = df["Close"].values.reshape(-1, 1)
+            # Prepare Data for Machine Learning Model
+            df["Minutes"] = np.arange(len(df))  # Convert timestamps to numerical values
+            X = df["Minutes"].values.reshape(-1, 1)
+            y = df["Close"].values.reshape(-1, 1)
 
-        # Train Model
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
-        model = LinearRegression()
-        model.fit(X_train, y_train)
+            # Train Model
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+            model = LinearRegression()
+            model.fit(X_train, y_train)
 
-        # Predict Stock Price for the Next Few Hours
-        future_minutes = np.array(range(df["Minutes"].max() + 1, df["Minutes"].max() + 10)).reshape(-1, 1)
-        predicted_prices = model.predict(future_minutes)
+            # Predict Stock Price for the Next Few Hours
+            future_minutes = np.array(range(df["Minutes"].max() + 1, df["Minutes"].max() + 10)).reshape(-1, 1)
+            predicted_prices = model.predict(future_minutes)
 
-        # Display Predictions
-        future_df = pd.DataFrame({"Minutes": future_minutes.flatten(), "Predicted Price": predicted_prices.flatten()})
-        future_df["Time"] = pd.date_range(start=df.index.max(), periods=len(future_df), freq="15min")
+            # Display Predictions
+            future_df = pd.DataFrame({"Minutes": future_minutes.flatten(), "Predicted Price": predicted_prices.flatten()})
+            future_df["Time"] = pd.date_range(start=df.index.max(), periods=len(future_df), freq="15min")
 
-        fig = px.line(future_df, x="Time", y="Predicted Price", title=f"📈 Intraday Stock Prediction ({selected_company})")
-        st.plotly_chart(fig)
+            fig = px.line(future_df, x="Time", y="Predicted Price", title=f"📈 Intraday Stock Prediction ({selected_company})")
+            st.plotly_chart(fig)
 
-        # Calculate Profit and Loss Separately
-        predicted_high = max(predicted_prices)[0]  # Maximum predicted price
-        predicted_low = min(predicted_prices)[0]   # Minimum predicted price
+            # Calculate Profit and Loss Separately
+            predicted_high = max(predicted_prices)[0]  # Maximum predicted price
+            predicted_low = min(predicted_prices)[0]   # Minimum predicted price
 
-        profit_amount = (predicted_high - current_price) * shares_to_buy
-        loss_amount = (predicted_low - current_price) * shares_to_buy
+            profit_amount = (predicted_high - current_price) * shares_to_buy
+            loss_amount = (predicted_low - current_price) * shares_to_buy
 
-        # Profit Section
-        if profit_amount > 0:
-            st.success(f"✅ *Potential Profit: ${profit_amount:.2f}* if stock reaches predicted high of ${predicted_high:.2f}")
-        else:
-            st.info("⚖ *Neutral trend detected. No significant profit expected.*")
+            # Profit Section
+            if profit_amount > 0:
+                st.success(f"✅ *Potential Profit: ${profit_amount:.2f}* if stock reaches predicted high of ${predicted_high:.2f}")
+            else:
+                st.info("⚖ *Neutral trend detected. No significant profit expected.*")
 
-        # Loss Section
-        if loss_amount < 0:
-            st.error(f"⚠ *Potential Loss: ${abs(loss_amount):.2f}* if stock drops to predicted low of ${predicted_low:.2f}")
+            # Loss Section
+            if loss_amount < 0:
+                st.error(f"⚠ *Potential Loss: ${abs(loss_amount):.2f}* if stock drops to predicted low of ${predicted_low:.2f}")
 
-        # *Selling Time Prediction*
-        best_sell_time = future_df.loc[future_df["Predicted Price"].idxmax(), "Time"]
-        worst_sell_time = future_df.loc[future_df["Predicted Price"].idxmin(), "Time"]
+            # *Selling Time Prediction*
+            best_sell_time = future_df.loc[future_df["Predicted Price"].idxmax(), "Time"]
+            worst_sell_time = future_df.loc[future_df["Predicted Price"].idxmin(), "Time"]
 
-        st.write(f"🕒 *Best Time to Sell (Expected High):* {best_sell_time.strftime('%H:%M %p')}")
-        st.write(f"⏳ *Risky Time to Hold (Expected Low):* {worst_sell_time.strftime('%H:%M %p')}")
+            st.write(f"🕒 *Best Time to Sell (Expected High):* {best_sell_time.strftime('%H:%M %p')}")
+            st.write(f"⏳ *Risky Time to Hold (Expected Low):* {worst_sell_time.strftime('%H:%M %p')}")
 
-        # Final Recommendation
-        if profit_amount > abs(loss_amount):
-            st.success("📈 *Recommended: Buy Now. Market trend shows a potential uptrend.*")
-        else:
-            st.warning("📉 *Not Recommended: High risk of loss detected.*")
+            # Final Recommendation
+            if profit_amount > abs(loss_amount):
+                st.success("📈 *Recommended: Buy Now. Market trend shows a potential uptrend.*")
+            else:
+                st.warning("📉 *Not Recommended: High risk of loss detected.*")
 
+        except Exception as e:
+            st.error(f"⚠ An error occurred while processing data: {e}")
+    
     else:
-        st.error("⚠ Could not fetch stock data. API limit may have been reached!")
+        st.error("⚠ Could not fetch stock data. API limit may have been reached or invalid API key.")
