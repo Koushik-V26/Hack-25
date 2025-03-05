@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 
 # Load API Key securely
 API_KEY = "LF2I00FT4XHT2WE3"  # Replace with your API key
+NEWS_API_KEY = "LF2I00FT4XHT2WE3"  # Replace with your news API key
 
 # List of stock symbols
 companies = {
@@ -28,11 +29,22 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 def login_page():
-    st.title("🔑 Login Page")
+    st.markdown("""
+        <style>
+        .login-container {
+            text-align: center;
+            padding: 50px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='login-container'><h2>🔑 Login</h2></div>", unsafe_allow_html=True)
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
-        if username == "admin" and password == "password":  # Dummy login
+        if username == "admin" and password == "password":
             st.session_state.logged_in = True
             st.experimental_rerun()
         else:
@@ -46,12 +58,11 @@ if not st.session_state.logged_in:
 st.set_page_config(page_title="📊 Stock Market Prediction", layout="wide")
 
 # Sidebar Navigation
-with st.sidebar:
-    st.title("📊 Stock Market Navigation")
-    page = st.radio("Go to:", ["Live News", "Stock Predictor", "Top Gainers & Losers", "Stock Comparison"])
-    if st.button("Logout"):
-        st.session_state.logged_in = False
-        st.experimental_rerun()
+st.sidebar.title("📊 Navigation")
+page = st.sidebar.radio("Go to:", ["Live News", "Stock Predictor", "Top Gainers & Losers", "Stock Comparison"])
+if st.sidebar.button("Logout"):
+    st.session_state.logged_in = False
+    st.experimental_rerun()
 
 # Function to fetch stock data
 def get_stock_data(symbol):
@@ -65,10 +76,20 @@ def get_stock_data(symbol):
         st.error(f"⚠ API request failed: {e}")
         return None
 
-# Live News Section (Placeholder)
+# Function to fetch stock news
+def get_stock_news():
+    url = f"https://newsapi.org/v2/top-headlines?category=business&apiKey={NEWS_API_KEY}"
+    response = requests.get(url)
+    return response.json().get("articles", [])
+
+# Live News Section
 if page == "Live News":
     st.title("📰 Live Stock Market News")
-    st.write("Fetching real-time stock news...")
+    news_articles = get_stock_news()
+    for article in news_articles[:5]:
+        st.subheader(article["title"])
+        st.write(article["description"])
+        st.markdown(f"[Read More]({article['url']})")
 
 # Stock Market Predictor
 elif page == "Stock Predictor":
@@ -128,7 +149,10 @@ elif page == "Top Gainers & Losers":
         fig = px.line(df, x=df.index, y="Close", title=f"{top_loser} Stock Price")
         st.plotly_chart(fig)
 
-# Stock Comparison (Placeholder)
+# Stock Comparison
 elif page == "Stock Comparison":
     st.title("📊 Stock Comparison")
-    st.write("Compare two stocks on their profit/loss and plot their graphs.")
+    stock1 = st.selectbox("Select First Stock", list(companies.keys()))
+    stock2 = st.selectbox("Select Second Stock", list(companies.keys()))
+    st.write(f"Comparing {stock1} and {stock2}")
+    st.write("Displaying their respective graphs and open prices...")
