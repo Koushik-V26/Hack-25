@@ -5,11 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-import os
 import time
 
-# Load API Key securely
-API_KEY = os.getenv("1SH0HBPJU2F96JMV")  # Set this in your environment variables
+# Load API Key
+API_KEY = "1SH0HBPJU2F96JMV"  # Replace with your actual Alpha Vantage API key
 
 # List of stock symbols
 companies = {
@@ -27,17 +26,6 @@ companies = {
 
 # Streamlit UI
 st.set_page_config(page_title="📊 Live Stock Predictor", layout="wide")
-st.markdown("""
-    <style>
-        .main {
-            background-color: #f0f2f6;
-        }
-        h1 {
-            text-align: center;
-            color: #007bff;
-        }
-    </style>
-""", unsafe_allow_html=True)
 
 st.title("📈 Live Stock Market Predictor")
 
@@ -46,20 +34,35 @@ symbol = companies[selected_company]
 
 investment_amount = st.number_input("Enter Investment Amount ($)", min_value=10, max_value=10000, step=10)
 
+# Function to fetch stock data with API rate limit handling
 def get_intraday_data(symbol):
     url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}&interval=5min&apikey={API_KEY}&outputsize=compact"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        if "Time Series (5min)" not in data:
-            return None
-        return data["Time Series (5min)"]
-    except requests.exceptions.RequestException as e:
-        st.error(f"⚠ API request failed: {e}")
+    time.sleep(12)  # Prevent hitting API limit
+
+    response = requests.get(url)
+    data = response.json()
+
+    if "Time Series (5min)" not in data:
+        st.error("⚠ API Limit reached or unexpected response. Trying daily data...")
+        return get_daily_data(symbol)
+
+    return data["Time Series (5min)"]
+
+# Alternative: Fetch daily data if intraday fails
+def get_daily_data(symbol):
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={API_KEY}"
+    time.sleep(12)
+
+    response = requests.get(url)
+    data = response.json()
+
+    if "Time Series (Daily)" not in data:
+        st.error("❌ API Error: Could not fetch stock data. Try again later.")
         return None
 
-if st.button("🔍 Predict Intraday Profit/Loss"):
+    return data["Time Series (Daily)"]
+
+if st.button("🔍 Predict Stock Performance"):
     stock_data = get_intraday_data(symbol)
     if stock_data:
         try:
@@ -99,8 +102,6 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
 
             if profit_amount > 0:
                 st.success(f"✅ Potential Profit: ${profit_amount:.2f} if stock reaches predicted high of ${predicted_high:.2f}")
-            else:
-                st.info("⚖ Neutral trend detected. No significant profit expected.")
 
             if loss_amount < 0:
                 st.error(f"⚠ Potential Loss: ${abs(loss_amount):.2f} if stock drops to predicted low of ${predicted_low:.2f}")
@@ -114,25 +115,6 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
             # Live updating graph
             st.subheader("📊 Live Stock Price Movement")
             live_chart = st.line_chart(df["Close"])
-
-            for _ in range(10):  # Simulate real-time updates
-                time.sleep(2)
-                stock_data = get_intraday_data(symbol)
-                if stock_data:
-                    df = pd.DataFrame.from_dict(stock_data, orient="index", dtype=float)
-                    df.index = pd.to_datetime(df.index)
-                    df = df.sort_index()
-                    df.columns = ["Open", "High", "Low", "Close", "Volume"]
-                    live_chart.line_chart(df["Close"])
-
-            buy_percentage = np.random.randint(40, 60)
-            sell_percentage = 100 - buy_percentage
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.button(f"📈 Buy ({buy_percentage}%)", key="buy", help="Recommended buy percentage", use_container_width=True)
-            with col2:
-                st.button(f"📉 Sell ({sell_percentage}%)", key="sell", help="Recommended sell percentage", use_container_width=True)
 
         except Exception as e:
             st.error(f"⚠ An error occurred while processing data: {e}")
