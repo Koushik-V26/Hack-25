@@ -6,7 +6,7 @@ import time
 import os
 
 # Load API Key securely
-API_KEY = os.getenv("LF2I00FT4XHT2WE3")  # Set this in your environment variables
+API_KEY = os.getenv("HQE75GFESON26CBK")  # Set this in your environment variables
 
 # List of stock symbols
 companies = {
