@@ -1,0 +1,27 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f5f5f5;
+}
+
+h1 {
+    text-align: center;
+    color: #007bff;
+}
+
+.container {
+    padding: 20px;
+}
+
+.stButton button {
+    background-color: #28a745;
+    color: white;
+}
+
+.stButton button:hover {
+    background-color: #218838;
+}
+
+.stMetric {
+    text-align: center;
+    font-size: 18px;
+}
