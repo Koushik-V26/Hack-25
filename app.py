@@ -7,7 +7,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-import plotly.express as px
+import os
+import time
+import matplotlib.pyplot as plt
 
 # Load API Key securely
 API_KEY = "HQE75GFESON26CBK"  # Replace with your API key
@@ -19,6 +21,11 @@ companies = {
     "Google (GOOGL)": "GOOGL",
     "Amazon (AMZN)": "AMZN",
     "Tesla (TSLA)": "TSLA",
+    "Meta (META)": "META",
+    "NVIDIA (NVDA)": "NVDA",
+    "Netflix (NFLX)": "NFLX",
+    "Intel (INTC)": "INTC",
+    "IBM (IBM)": "IBM"
 }
 
 # Streamlit UI
@@ -32,6 +39,7 @@ investment_amount = st.number_input("Enter Investment Amount ($)", min_value=10,
 user_email = st.text_input("Enter your email for notifications", placeholder="example@gmail.com")
 
 def get_intraday_data(symbol):
+    """Fetch intraday stock data from Alpha Vantage API."""
     url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}&interval=5min&apikey={API_KEY}&outputsize=compact"
     try:
         response = requests.get(url)
@@ -43,8 +51,9 @@ def get_intraday_data(symbol):
         return None
 
 def send_email_notification(subject, message, recipient_email):
+    """Send an email notification about stock profit/loss."""
     sender_email = "YOUR_EMAIL@gmail.com"
-    sender_password = "YOUR_PASSWORD"
+    sender_password = "YOUR_PASSWORD"  # Use App Password for security
     
     msg = MIMEMultipart()
     msg["From"] = sender_email
@@ -70,7 +79,7 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
             df.index = pd.to_datetime(df.index)
             df = df.sort_index()
             df.columns = ["Open", "High", "Low", "Close", "Volume"]
-            
+
             current_price = df.iloc[-1]["Close"]
             open_price = df.iloc[0]["Open"]
             
@@ -79,23 +88,14 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
             
             shares_to_buy = investment_amount / current_price
             st.info(f"📊 With ${investment_amount}, you can buy approximately {shares_to_buy:.2f} shares.")
-            
-            # Graph for stock price movement
-            fig = px.line(df, x=df.index, y="Close", title=f"{selected_company} Live Stock Price")
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Buy and Sell percentage calculations
-            buy_percentage = np.random.uniform(40, 60)  # Simulating buy %
-            sell_percentage = 100 - buy_percentage
-            st.metric(label="📈 Buy Percentage", value=f"{buy_percentage:.2f}%")
-            st.metric(label="📉 Sell Percentage", value=f"{sell_percentage:.2f}%")
-            
+
             df["Minutes"] = np.arange(len(df))
             X = df["Minutes"].values.reshape(-1, 1)
             y = df["Close"].values.reshape(-1, 1)
             
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
             model = LinearRegression()
-            model.fit(X, y)
+            model.fit(X_train, y_train)
             
             future_minutes = np.array(range(df["Minutes"].max() + 1, df["Minutes"].max() + 10)).reshape(-1, 1)
             predicted_prices = model.predict(future_minutes)
@@ -108,7 +108,7 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
 
             notification_subject = ""
             notification_message = ""
-            
+
             if profit_amount > 0:
                 notification_subject = "📈 Stock Gain Alert!"
                 notification_message = f"Your selected stock ({selected_company}) has a potential gain of ${profit_amount:.2f}.\n\nPredicted High: ${predicted_high:.2f}"
@@ -118,15 +118,33 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
                 notification_subject = "📉 Stock Loss Warning!"
                 notification_message = f"Your selected stock ({selected_company}) may drop, leading to a potential loss of ${abs(loss_amount):.2f}.\n\nPredicted Low: ${predicted_low:.2f}"
                 st.error(f"⚠ Potential Loss: ${abs(loss_amount):.2f} if stock drops to predicted low of ${predicted_low:.2f}")
+
+            # Plotting live stock price movement
+            st.subheader("📊 Live Stock Market Graph")
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.plot(df.index, df["Close"], marker="o", linestyle="-", color="blue", label="Close Price")
+            ax.set_title(f"{selected_company} Stock Price")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Price ($)")
+            ax.legend()
+            st.pyplot(fig)
+
+            # Buy/Sell Recommendation
+            buy_percentage = np.random.randint(40, 60)
+            sell_percentage = 100 - buy_percentage
             
-            # Notification button
-            if st.button("📩 Get Email Updates"):
-                email = st.text_input("Enter your email to receive stock updates", placeholder="example@gmail.com")
-                if email:
-                    send_email_notification(notification_subject, notification_message, email)
-                else:
-                    st.warning("Please enter a valid email to receive notifications.")
-        
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric(label="📈 Buy Percentage", value=f"{buy_percentage}%")
+            with col2:
+                st.metric(label="📉 Sell Percentage", value=f"{sell_percentage}%")
+
+            # Notification Update Button
+            if st.button("🔔 Get Stock Update via Email"):
+                email_popup = st.text_input("Enter your email to get updates:", value=user_email)
+                if st.button("📩 Confirm & Send Notification"):
+                    send_email_notification(notification_subject, notification_message, email_popup)
+
         except Exception as e:
             st.error(f"⚠ An error occurred while processing data: {e}")
     else:
