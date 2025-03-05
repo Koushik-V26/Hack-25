@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 import os
 
 # Load API Key securely
-API_KEY = os.getenv("1SH0HBPJU2F96JMV")  # Set this in your environment variables
+API_KEY = os.getenv("LF2I00FT4XHT2WE3")  # Set this in your environment variables
 
 # List of stock symbols
 companies = {
