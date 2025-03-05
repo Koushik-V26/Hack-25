@@ -1,13 +1,10 @@
 import streamlit as st
 import requests
 import pandas as pd
-import numpy as np
 import plotly.express as px
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
 
 # Load API Key securely
-API_KEY = "YOUR_ALPHA_VANTAGE_API_KEY"  # Replace with your API key
+API_KEY = "LF2I00FT4XHT2WE3"  # Replace with your API key
 
 # List of stock symbols
 companies = {
@@ -34,7 +31,7 @@ def login_page():
     if st.button("Login"):
         if username == "admin" and password == "password":  # Dummy login
             st.session_state.logged_in = True
-            st.rerun()  # Fixed the rerun issue
+            st.rerun()
         else:
             st.error("Invalid credentials. Try again.")
 
@@ -47,11 +44,28 @@ st.set_page_config(page_title="📊 Stock Market Prediction", layout="wide")
 
 # Sidebar Navigation
 with st.sidebar:
-    st.title("📊 Stock Market Navigation")
-    page = st.radio("Go to:", ["Live News", "Stock Predictor", "Top Gainers & Losers", "Stock Comparison"])
-    if st.button("Logout"):
+    st.title("📊 Stock Market Dashboard")
+    
+    if st.button("📡 Live News", use_container_width=True):
+        st.session_state.page = "Live News"
+        st.rerun()
+
+    if st.button("📈 Stock Predictor", use_container_width=True):
+        st.session_state.page = "Stock Predictor"
+        st.rerun()
+
+    if st.button("📊 Top Gainers & Losers", use_container_width=True):
+        st.session_state.page = "Top Gainers & Losers"
+        st.rerun()
+
+    if st.button("📉 Stock Comparison", use_container_width=True):
+        st.session_state.page = "Stock Comparison"
+        st.rerun()
+
+    st.markdown("---")
+    if st.button("🚪 Logout", use_container_width=True, help="Click to log out"):
         st.session_state.logged_in = False
-        st.rerun()  # Fixed the rerun issue
+        st.rerun()
 
 # Function to fetch stock data
 def get_stock_data(symbol):
@@ -65,11 +79,13 @@ def get_stock_data(symbol):
         st.error(f"⚠ API request failed: {e}")
         return None
 
-# Top Gainers & Losers
-if page == "Top Gainers & Losers":
+# Top Gainers & Losers Section
+if st.session_state.get("page", "Top Gainers & Losers") == "Top Gainers & Losers":
     st.title("📊 Top Gainers & Losers")
+
     gainers = {}
     losers = {}
+
     for company, symbol in companies.items():
         stock_data = get_stock_data(symbol)
         if stock_data:
@@ -77,14 +93,17 @@ if page == "Top Gainers & Losers":
             df.index = pd.to_datetime(df.index)
             df = df.sort_index()
             df.columns = ["Open", "High", "Low", "Close", "Volume"]
+
             open_price = df.iloc[0]["Open"]
             close_price = df.iloc[-1]["Close"]
             change = close_price - open_price
+
             if change > 0:
                 gainers[company] = change
             else:
                 losers[company] = change
-    
+
+    # Display Top Gainer
     if gainers:
         top_gainer = max(gainers, key=gainers.get)
         st.subheader(f"📈 Top Gainer: {top_gainer}")
@@ -93,9 +112,14 @@ if page == "Top Gainers & Losers":
         df.index = pd.to_datetime(df.index)
         df = df.sort_index()
         df.columns = ["Open", "High", "Low", "Close", "Volume"]
-        fig = px.line(df, x=df.index, y="Close", title=f"{top_gainer} Stock Price")
-        st.plotly_chart(fig)
-    
+
+        st.metric(label="📈 Open Price", value=f"${df.iloc[0]['Open']:.2f}")
+        st.metric(label="📈 Current Price", value=f"${df.iloc[-1]['Close']:.2f}")
+
+        fig_gainer = px.line(df, x=df.index, y="Close", title=f"{top_gainer} Stock Price")
+        st.plotly_chart(fig_gainer)
+
+    # Display Top Loser
     if losers:
         top_loser = min(losers, key=losers.get)
         st.subheader(f"📉 Top Loser: {top_loser}")
@@ -104,5 +128,48 @@ if page == "Top Gainers & Losers":
         df.index = pd.to_datetime(df.index)
         df = df.sort_index()
         df.columns = ["Open", "High", "Low", "Close", "Volume"]
-        fig = px.line(df, x=df.index, y="Close", title=f"{top_loser} Stock Price")
-        st.plotly_chart(fig)
+
+        st.metric(label="📉 Open Price", value=f"${df.iloc[0]['Open']:.2f}")
+        st.metric(label="📉 Current Price", value=f"${df.iloc[-1]['Close']:.2f}")
+
+        fig_loser = px.line(df, x=df.index, y="Close", title=f"{top_loser} Stock Price")
+        st.plotly_chart(fig_loser)
+
+# Stock Comparison
+if st.session_state.get("page") == "Stock Comparison":
+    st.title("📊 Stock Comparison")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        company1 = st.selectbox("Select First Company", list(companies.keys()), key="company1")
+        symbol1 = companies[company1]
+
+    with col2:
+        company2 = st.selectbox("Select Second Company", list(companies.keys()), key="company2")
+        symbol2 = companies[company2]
+
+    stock_data1 = get_stock_data(symbol1)
+    stock_data2 = get_stock_data(symbol2)
+
+    if stock_data1 and stock_data2:
+        df1 = pd.DataFrame.from_dict(stock_data1, orient="index", dtype=float)
+        df2 = pd.DataFrame.from_dict(stock_data2, orient="index", dtype=float)
+
+        df1.index = pd.to_datetime(df1.index)
+        df2.index = pd.to_datetime(df2.index)
+
+        df1 = df1.sort_index()
+        df2 = df2.sort_index()
+
+        df1.columns = ["Open", "High", "Low", "Close", "Volume"]
+        df2.columns = ["Open", "High", "Low", "Close", "Volume"]
+
+        st.metric(label=f"📊 {company1} Open Price", value=f"${df1.iloc[0]['Open']:.2f}")
+        st.metric(label=f"📊 {company2} Open Price", value=f"${df2.iloc[0]['Open']:.2f}")
+
+        fig_comparison = px.line(title=f"{company1} vs {company2} Stock Price")
+        fig_comparison.add_scatter(x=df1.index, y=df1["Close"], mode="lines", name=company1)
+        fig_comparison.add_scatter(x=df2.index, y=df2["Close"], mode="lines", name=company2)
+
+        st.plotly_chart(fig_comparison)
