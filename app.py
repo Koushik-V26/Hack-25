@@ -7,8 +7,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 
 # Load API Key securely
-API_KEY = "LF2I00FT4XHT2WE3"  # Replace with your API key
-NEWS_API_KEY = "LF2I00FT4XHT2WE3"  # Replace with your news API key
+API_KEY = "YOUR_ALPHA_VANTAGE_API_KEY"  # Replace with your API key
 
 # List of stock symbols
 companies = {
@@ -29,24 +28,13 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 def login_page():
-    st.markdown("""
-        <style>
-        .login-container {
-            text-align: center;
-            padding: 50px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<div class='login-container'><h2>🔑 Login</h2></div>", unsafe_allow_html=True)
+    st.title("🔑 Login Page")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
-        if username == "admin" and password == "password":
+        if username == "admin" and password == "password":  # Dummy login
             st.session_state.logged_in = True
-            st.experimental_rerun()
+            st.rerun()  # Fixed the rerun issue
         else:
             st.error("Invalid credentials. Try again.")
 
@@ -58,11 +46,12 @@ if not st.session_state.logged_in:
 st.set_page_config(page_title="📊 Stock Market Prediction", layout="wide")
 
 # Sidebar Navigation
-st.sidebar.title("📊 Navigation")
-page = st.sidebar.radio("Go to:", ["Live News", "Stock Predictor", "Top Gainers & Losers", "Stock Comparison"])
-if st.sidebar.button("Logout"):
-    st.session_state.logged_in = False
-    st.experimental_rerun()
+with st.sidebar:
+    st.title("📊 Stock Market Navigation")
+    page = st.radio("Go to:", ["Live News", "Stock Predictor", "Top Gainers & Losers", "Stock Comparison"])
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()  # Fixed the rerun issue
 
 # Function to fetch stock data
 def get_stock_data(symbol):
@@ -76,39 +65,8 @@ def get_stock_data(symbol):
         st.error(f"⚠ API request failed: {e}")
         return None
 
-# Function to fetch stock news
-def get_stock_news():
-    url = f"https://newsapi.org/v2/top-headlines?category=business&apiKey={NEWS_API_KEY}"
-    response = requests.get(url)
-    return response.json().get("articles", [])
-
-# Live News Section
-if page == "Live News":
-    st.title("📰 Live Stock Market News")
-    news_articles = get_stock_news()
-    for article in news_articles[:5]:
-        st.subheader(article["title"])
-        st.write(article["description"])
-        st.markdown(f"[Read More]({article['url']})")
-
-# Stock Market Predictor
-elif page == "Stock Predictor":
-    st.title("📈 Stock Market Predictor")
-    selected_company = st.selectbox("Select a Company", list(companies.keys()))
-    symbol = companies[selected_company]
-    stock_data = get_stock_data(symbol)
-    if stock_data:
-        df = pd.DataFrame.from_dict(stock_data, orient="index", dtype=float)
-        df.index = pd.to_datetime(df.index)
-        df = df.sort_index()
-        df.columns = ["Open", "High", "Low", "Close", "Volume"]
-        
-        st.subheader("📊 Stock Price Movement")
-        fig = px.line(df, x=df.index, y="Close", title=f"{selected_company} Stock Price")
-        st.plotly_chart(fig)
-
 # Top Gainers & Losers
-elif page == "Top Gainers & Losers":
+if page == "Top Gainers & Losers":
     st.title("📊 Top Gainers & Losers")
     gainers = {}
     losers = {}
@@ -148,11 +106,3 @@ elif page == "Top Gainers & Losers":
         df.columns = ["Open", "High", "Low", "Close", "Volume"]
         fig = px.line(df, x=df.index, y="Close", title=f"{top_loser} Stock Price")
         st.plotly_chart(fig)
-
-# Stock Comparison
-elif page == "Stock Comparison":
-    st.title("📊 Stock Comparison")
-    stock1 = st.selectbox("Select First Stock", list(companies.keys()))
-    stock2 = st.selectbox("Select Second Stock", list(companies.keys()))
-    st.write(f"Comparing {stock1} and {stock2}")
-    st.write("Displaying their respective graphs and open prices...")
