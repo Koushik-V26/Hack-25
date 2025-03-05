@@ -16,86 +16,119 @@ companies = {
     "Google (GOOGL)": "GOOGL",
     "Amazon (AMZN)": "AMZN",
     "Tesla (TSLA)": "TSLA",
+    "Meta (META)": "META",
+    "NVIDIA (NVDA)": "NVDA",
+    "Netflix (NFLX)": "NFLX",
+    "Intel (INTC)": "INTC",
+    "IBM (IBM)": "IBM"
 }
 
-# Login System
-def login():
-    st.title("🔐 Login Page")
+# Authentication
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+def login_page():
+    st.title("🔑 Login Page")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
-        if username == "admin" and password == "password":
-            st.session_state["logged_in"] = True
+        if username == "admin" and password == "password":  # Dummy login
+            st.session_state.logged_in = True
             st.experimental_rerun()
         else:
-            st.error("Invalid Credentials")
+            st.error("Invalid credentials. Try again.")
 
-# Fetch live stock data
+if not st.session_state.logged_in:
+    login_page()
+    st.stop()
+
+# Streamlit App Main Page
+st.set_page_config(page_title="📊 Stock Market Prediction", layout="wide")
+
+# Sidebar Navigation
+with st.sidebar:
+    st.title("📊 Stock Market Navigation")
+    page = st.radio("Go to:", ["Live News", "Stock Predictor", "Top Gainers & Losers", "Stock Comparison"])
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.experimental_rerun()
+
+# Function to fetch stock data
 def get_stock_data(symbol):
     url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}&interval=5min&apikey={API_KEY}&outputsize=compact"
-    response = requests.get(url).json()
-    return response.get("Time Series (5min)", {})
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("Time Series (5min)", None)
+    except requests.exceptions.RequestException as e:
+        st.error(f"⚠ API request failed: {e}")
+        return None
 
-# Live News Section
-def show_live_news():
-    st.subheader("📢 Live Stock Market News")
-    st.write("(Fetching real-time stock market news...)")
-    # Placeholder: Replace with actual news API integration
-    st.info("🚀 Stock Market is showing bullish trends today!")
+# Live News Section (Placeholder)
+if page == "Live News":
+    st.title("📰 Live Stock Market News")
+    st.write("Fetching real-time stock news...")
 
-# Stock Predictor
-def stock_predictor():
-    st.subheader("📈 Stock Market Predictor")
+# Stock Market Predictor
+elif page == "Stock Predictor":
+    st.title("📈 Stock Market Predictor")
     selected_company = st.selectbox("Select a Company", list(companies.keys()))
     symbol = companies[selected_company]
     stock_data = get_stock_data(symbol)
-    
     if stock_data:
         df = pd.DataFrame.from_dict(stock_data, orient="index", dtype=float)
         df.index = pd.to_datetime(df.index)
         df = df.sort_index()
         df.columns = ["Open", "High", "Low", "Close", "Volume"]
         
-        # Plot stock price
+        st.subheader("📊 Stock Price Movement")
         fig = px.line(df, x=df.index, y="Close", title=f"{selected_company} Stock Price")
         st.plotly_chart(fig)
-        
-        # Buy/Sell Recommendation
-        buy_percentage = np.random.randint(40, 60)
-        sell_percentage = 100 - buy_percentage
-        st.metric(label="📈 Buy Percentage", value=f"{buy_percentage}%")
-        st.metric(label="📉 Sell Percentage", value=f"{sell_percentage}%")
-    else:
-        st.error("Failed to fetch stock data.")
 
 # Top Gainers & Losers
-def show_top_gainers_losers():
-    st.subheader("📊 Top Gainers & Losers")
-    if st.button("📈 Show Gainers"):
-        st.success("(Displaying top-performing stocks of the day...)")
-    if st.button("📉 Show Losers"):
-        st.error("(Displaying worst-performing stocks of the day...)")
-
-# Stock Comparison
-def stock_comparison():
-    st.subheader("📊 Stock Comparison")
-    stock1, stock2 = st.selectbox("Select Stock 1", list(companies.keys())), st.selectbox("Select Stock 2", list(companies.keys()))
-    symbol1, symbol2 = companies[stock1], companies[stock2]
+elif page == "Top Gainers & Losers":
+    st.title("📊 Top Gainers & Losers")
+    gainers = {}
+    losers = {}
+    for company, symbol in companies.items():
+        stock_data = get_stock_data(symbol)
+        if stock_data:
+            df = pd.DataFrame.from_dict(stock_data, orient="index", dtype=float)
+            df.index = pd.to_datetime(df.index)
+            df = df.sort_index()
+            df.columns = ["Open", "High", "Low", "Close", "Volume"]
+            open_price = df.iloc[0]["Open"]
+            close_price = df.iloc[-1]["Close"]
+            change = close_price - open_price
+            if change > 0:
+                gainers[company] = change
+            else:
+                losers[company] = change
     
-    st.info(f"Comparing {stock1} vs {stock2}")
-    # Placeholder for graph comparison
-    st.write("(Comparison Graph Coming Soon...)")
+    if gainers:
+        top_gainer = max(gainers, key=gainers.get)
+        st.subheader(f"📈 Top Gainer: {top_gainer}")
+        symbol = companies[top_gainer]
+        df = pd.DataFrame.from_dict(get_stock_data(symbol), orient="index", dtype=float)
+        df.index = pd.to_datetime(df.index)
+        df = df.sort_index()
+        df.columns = ["Open", "High", "Low", "Close", "Volume"]
+        fig = px.line(df, x=df.index, y="Close", title=f"{top_gainer} Stock Price")
+        st.plotly_chart(fig)
+    
+    if losers:
+        top_loser = min(losers, key=losers.get)
+        st.subheader(f"📉 Top Loser: {top_loser}")
+        symbol = companies[top_loser]
+        df = pd.DataFrame.from_dict(get_stock_data(symbol), orient="index", dtype=float)
+        df.index = pd.to_datetime(df.index)
+        df = df.sort_index()
+        df.columns = ["Open", "High", "Low", "Close", "Volume"]
+        fig = px.line(df, x=df.index, y="Close", title=f"{top_loser} Stock Price")
+        st.plotly_chart(fig)
 
-# Navigation Bar
-menu = st.sidebar.radio("Navigation", ["Login", "Live News", "Stock Predictor", "Top Gainers & Losers", "Stock Comparison"])
-if "logged_in" not in st.session_state:
-    login()
-else:
-    if menu == "Live News":
-        show_live_news()
-    elif menu == "Stock Predictor":
-        stock_predictor()
-    elif menu == "Top Gainers & Losers":
-        show_top_gainers_losers()
-    elif menu == "Stock Comparison":
-        stock_comparison()
+# Stock Comparison (Placeholder)
+elif page == "Stock Comparison":
+    st.title("📊 Stock Comparison")
+    st.write("Compare two stocks on their profit/loss and plot their graphs.")
