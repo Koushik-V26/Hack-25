@@ -2,15 +2,12 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import plotly.express as px
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-import plotly.express as px
 
 # Load API Key securely
-API_KEY = "HQE75GFESON26CBK"  # Replace with your API key
+API_KEY = "LF2I00FT4XHT2WE3"  # Replace with your API key
 
 # List of stock symbols
 companies = {
@@ -21,113 +18,84 @@ companies = {
     "Tesla (TSLA)": "TSLA",
 }
 
-# Streamlit UI
-st.set_page_config(page_title="📊 Live Stock Predictor", layout="wide")
-st.title("📈 Live Stock Market Predictor")
+# Login System
+def login():
+    st.title("🔐 Login Page")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username == "admin" and password == "password":
+            st.session_state["logged_in"] = True
+            st.experimental_rerun()
+        else:
+            st.error("Invalid Credentials")
 
-selected_company = st.selectbox("Select a Company", list(companies.keys()))
-symbol = companies[selected_company]
-
-investment_amount = st.number_input("Enter Investment Amount ($)", min_value=10, max_value=10000, step=10)
-user_email = st.text_input("Enter your email for notifications", placeholder="example@gmail.com")
-
-def get_intraday_data(symbol):
+# Fetch live stock data
+def get_stock_data(symbol):
     url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}&interval=5min&apikey={API_KEY}&outputsize=compact"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        return data.get("Time Series (5min)", None)
-    except requests.exceptions.RequestException as e:
-        st.error(f"⚠ API request failed: {e}")
-        return None
+    response = requests.get(url).json()
+    return response.get("Time Series (5min)", {})
 
-def send_email_notification(subject, message, recipient_email):
-    sender_email = "YOUR_EMAIL@gmail.com"
-    sender_password = "YOUR_PASSWORD"
+# Live News Section
+def show_live_news():
+    st.subheader("📢 Live Stock Market News")
+    st.write("(Fetching real-time stock market news...)")
+    # Placeholder: Replace with actual news API integration
+    st.info("🚀 Stock Market is showing bullish trends today!")
+
+# Stock Predictor
+def stock_predictor():
+    st.subheader("📈 Stock Market Predictor")
+    selected_company = st.selectbox("Select a Company", list(companies.keys()))
+    symbol = companies[selected_company]
+    stock_data = get_stock_data(symbol)
     
-    msg = MIMEMultipart()
-    msg["From"] = sender_email
-    msg["To"] = recipient_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(message, "plain"))
-
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, recipient_email, msg.as_string())
-        server.quit()
-        st.success("📧 Email notification sent successfully!")
-    except Exception as e:
-        st.error(f"⚠ Failed to send email: {e}")
-
-if st.button("🔍 Predict Intraday Profit/Loss"):
-    stock_data = get_intraday_data(symbol)
     if stock_data:
-        try:
-            df = pd.DataFrame.from_dict(stock_data, orient="index", dtype=float)
-            df.index = pd.to_datetime(df.index)
-            df = df.sort_index()
-            df.columns = ["Open", "High", "Low", "Close", "Volume"]
-            
-            current_price = df.iloc[-1]["Close"]
-            open_price = df.iloc[0]["Open"]
-            
-            st.metric(label="📌 Open Price", value=f"${open_price:.2f}")
-            st.metric(label="📌 Current Price", value=f"${current_price:.2f}")
-            
-            shares_to_buy = investment_amount / current_price
-            st.info(f"📊 With ${investment_amount}, you can buy approximately {shares_to_buy:.2f} shares.")
-            
-            # Graph for stock price movement
-            fig = px.line(df, x=df.index, y="Close", title=f"{selected_company} Live Stock Price")
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Buy and Sell percentage calculations
-            buy_percentage = np.random.uniform(40, 60)  # Simulating buy %
-            sell_percentage = 100 - buy_percentage
-            st.metric(label="📈 Buy Percentage", value=f"{buy_percentage:.2f}%")
-            st.metric(label="📉 Sell Percentage", value=f"{sell_percentage:.2f}%")
-            
-            df["Minutes"] = np.arange(len(df))
-            X = df["Minutes"].values.reshape(-1, 1)
-            y = df["Close"].values.reshape(-1, 1)
-            
-            model = LinearRegression()
-            model.fit(X, y)
-            
-            future_minutes = np.array(range(df["Minutes"].max() + 1, df["Minutes"].max() + 10)).reshape(-1, 1)
-            predicted_prices = model.predict(future_minutes)
-            
-            predicted_high = max(predicted_prices)[0]
-            predicted_low = min(predicted_prices)[0]
-
-            profit_amount = (predicted_high - current_price) * shares_to_buy
-            loss_amount = (predicted_low - current_price) * shares_to_buy
-
-            notification_subject = ""
-            notification_message = ""
-            
-            if profit_amount > 0:
-                notification_subject = "📈 Stock Gain Alert!"
-                notification_message = f"Your selected stock ({selected_company}) has a potential gain of ${profit_amount:.2f}.\n\nPredicted High: ${predicted_high:.2f}"
-                st.success(f"✅ Potential Profit: ${profit_amount:.2f} if stock reaches predicted high of ${predicted_high:.2f}")
-            
-            if loss_amount < 0:
-                notification_subject = "📉 Stock Loss Warning!"
-                notification_message = f"Your selected stock ({selected_company}) may drop, leading to a potential loss of ${abs(loss_amount):.2f}.\n\nPredicted Low: ${predicted_low:.2f}"
-                st.error(f"⚠ Potential Loss: ${abs(loss_amount):.2f} if stock drops to predicted low of ${predicted_low:.2f}")
-            
-            # Notification button
-            if st.button("📩 Get Email Updates"):
-                email = st.text_input("Enter your email to receive stock updates", placeholder="example@gmail.com")
-                if email:
-                    send_email_notification(notification_subject, notification_message, email)
-                else:
-                    st.warning("Please enter a valid email to receive notifications.")
+        df = pd.DataFrame.from_dict(stock_data, orient="index", dtype=float)
+        df.index = pd.to_datetime(df.index)
+        df = df.sort_index()
+        df.columns = ["Open", "High", "Low", "Close", "Volume"]
         
-        except Exception as e:
-            st.error(f"⚠ An error occurred while processing data: {e}")
+        # Plot stock price
+        fig = px.line(df, x=df.index, y="Close", title=f"{selected_company} Stock Price")
+        st.plotly_chart(fig)
+        
+        # Buy/Sell Recommendation
+        buy_percentage = np.random.randint(40, 60)
+        sell_percentage = 100 - buy_percentage
+        st.metric(label="📈 Buy Percentage", value=f"{buy_percentage}%")
+        st.metric(label="📉 Sell Percentage", value=f"{sell_percentage}%")
     else:
-        st.error("⚠ Could not fetch stock data. API limit may have been reached or invalid API key.")
+        st.error("Failed to fetch stock data.")
+
+# Top Gainers & Losers
+def show_top_gainers_losers():
+    st.subheader("📊 Top Gainers & Losers")
+    if st.button("📈 Show Gainers"):
+        st.success("(Displaying top-performing stocks of the day...)")
+    if st.button("📉 Show Losers"):
+        st.error("(Displaying worst-performing stocks of the day...)")
+
+# Stock Comparison
+def stock_comparison():
+    st.subheader("📊 Stock Comparison")
+    stock1, stock2 = st.selectbox("Select Stock 1", list(companies.keys())), st.selectbox("Select Stock 2", list(companies.keys()))
+    symbol1, symbol2 = companies[stock1], companies[stock2]
+    
+    st.info(f"Comparing {stock1} vs {stock2}")
+    # Placeholder for graph comparison
+    st.write("(Comparison Graph Coming Soon...)")
+
+# Navigation Bar
+menu = st.sidebar.radio("Navigation", ["Login", "Live News", "Stock Predictor", "Top Gainers & Losers", "Stock Comparison"])
+if "logged_in" not in st.session_state:
+    login()
+else:
+    if menu == "Live News":
+        show_live_news()
+    elif menu == "Stock Predictor":
+        stock_predictor()
+    elif menu == "Top Gainers & Losers":
+        show_top_gainers_losers()
+    elif menu == "Stock Comparison":
+        stock_comparison()
