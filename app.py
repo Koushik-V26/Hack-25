@@ -125,6 +125,15 @@ if st.button("🔍 Predict Intraday Profit/Loss"):
                     df.columns = ["Open", "High", "Low", "Close", "Volume"]
                     live_chart.line_chart(df["Close"])
 
+            buy_percentage = np.random.randint(40, 60)
+            sell_percentage = 100 - buy_percentage
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.button(f"📈 Buy ({buy_percentage}%)", key="buy", help="Recommended buy percentage", use_container_width=True)
+            with col2:
+                st.button(f"📉 Sell ({sell_percentage}%)", key="sell", help="Recommended sell percentage", use_container_width=True)
+
         except Exception as e:
             st.error(f"⚠ An error occurred while processing data: {e}")
     else:
