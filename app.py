@@ -742,6 +742,8 @@ elif st.session_state.page == "📈 Top Gainer & Loser":
     losers = {}
     for company, symbol in companies.items():
         stock_data = get_stock_data(symbol)
+        
+        # Check if data is fetched successfully and contains the required key
         if stock_data and "Time Series (5min)" in stock_data:
             df = pd.DataFrame.from_dict(stock_data["Time Series (5min)"], orient="index", dtype=float)
             df.index = pd.to_datetime(df.index)
@@ -756,31 +758,43 @@ elif st.session_state.page == "📈 Top Gainer & Loser":
                 gainers[company] = change
             else:
                 losers[company] = change
+        else:
+            st.warning(f"⚠ Could not fetch data for {company} ({symbol}).")
 
     # Display Top Gainer
     if gainers:
         top_gainer = max(gainers, key=gainers.get)
         st.subheader(f"📈 Top Gainer: {top_gainer}")
         symbol = companies[top_gainer]
-        df = pd.DataFrame.from_dict(get_stock_data(symbol)["Time Series (5min)"], orient="index", dtype=float)
-        df.index = pd.to_datetime(df.index)
-        df = df.sort_index()
-        df.columns = ["Open", "High", "Low", "Close", "Volume"]
+        stock_data = get_stock_data(symbol)
+        
+        if stock_data and "Time Series (5min)" in stock_data:
+            df = pd.DataFrame.from_dict(stock_data["Time Series (5min)"], orient="index", dtype=float)
+            df.index = pd.to_datetime(df.index)
+            df = df.sort_index()
+            df.columns = ["Open", "High", "Low", "Close", "Volume"]
 
-        st.metric(label="📈 Open Price", value=f"${df.iloc[0]['Open']:.2f}")
-        fig_gainer = px.line(df, x=df.index, y="Close", title=f"{top_gainer} Stock Price")
-        st.plotly_chart(fig_gainer)
+            st.metric(label="📈 Open Price", value=f"${df.iloc[0]['Open']:.2f}")
+            fig_gainer = px.line(df, x=df.index, y="Close", title=f"{top_gainer} Stock Price")
+            st.plotly_chart(fig_gainer)
+        else:
+            st.warning(f"⚠ Could not fetch data for {top_gainer} ({symbol}).")
 
     # Display Top Loser
     if losers:
         top_loser = min(losers, key=losers.get)
         st.subheader(f"📉 Top Loser: {top_loser}")
         symbol = companies[top_loser]
-        df = pd.DataFrame.from_dict(get_stock_data(symbol)["Time Series (5min)"], orient="index", dtype=float)
-        df.index = pd.to_datetime(df.index)
-        df = df.sort_index()
-        df.columns = ["Open", "High", "Low", "Close", "Volume"]
+        stock_data = get_stock_data(symbol)
+        
+        if stock_data and "Time Series (5min)" in stock_data:
+            df = pd.DataFrame.from_dict(stock_data["Time Series (5min)"], orient="index", dtype=float)
+            df.index = pd.to_datetime(df.index)
+            df = df.sort_index()
+            df.columns = ["Open", "High", "Low", "Close", "Volume"]
 
-        st.metric(label="📉 Open Price", value=f"${df.iloc[0]['Open']:.2f}")
-        fig_loser = px.line(df, x=df.index, y="Close", title=f"{top_loser} Stock Price")
-        st.plotly_chart(fig_loser)
+            st.metric(label="📉 Open Price", value=f"${df.iloc[0]['Open']:.2f}")
+            fig_loser = px.line(df, x=df.index, y="Close", title=f"{top_loser} Stock Price")
+            st.plotly_chart(fig_loser)
+        else:
+            st.warning(f"⚠ Could not fetch data for {top_loser} ({symbol}).")
